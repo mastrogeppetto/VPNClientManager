@@ -57,19 +57,17 @@ Before using this script, ensure you have the following packages installed on yo
 
 1.  **Download the script**:
     ```bash
-    git clone [https://github.com/YourUsername/your-repo-name.git](https://github.com/YourUsername/your-repo-name.git)
-    cd your-repo-name
+    git clone [https://github.com/mastrogeppetto/VPNClientManager](https://github.com/mastrogeppetto/VPNClientManager)
+    cd VPNClientManager
     # Or simply download the script file directly
     ```
 2.  **Make it executable**:
     ```bash
-    chmod +x wireguard_vpn_manager.sh
+    chmod +x VPN.sh
     ```
 3.  **(Optional) Move to a PATH directory**: For easier execution from anywhere:
     ```bash
-    sudo mv wireguard_vpn_manager.sh /usr/local/bin/
-    ```
-    (You might want to rename it to something shorter like `wg-manage` after moving it).
+    sudo mv VPN.sh /usr/local/bin/
 
 ---
 
@@ -82,6 +80,6 @@ The script requires `sudo` privileges for all operations as it interacts with ne
 To check your current WireGuard VPN status and interactively manage connections:
 
 ```bash
-sudo ./wireguard_vpn_manager.sh
+sudo ./VPN.sh
 # Or if moved to /usr/local/bin:
-# sudo wg-manage
+# sudo VPN.sh
