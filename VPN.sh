@@ -17,8 +17,23 @@ check_zbarimg_installed() {
     return 0
 }
 
+# Funzione per verificare la disponibilità del comando wg (parte di wireguard-tools)
+check_wg_installed() {
+    if ! command -v wg &> /dev/null; then
+        echo "Errore: Il comando 'wg' non è stato trovato."
+        echo "È necessario installare 'wireguard-tools' per gestire le configurazioni WireGuard."
+        echo "Su sistemi Debian/Ubuntu, puoi installarlo con: sudo apt install wireguard-tools"
+        return 1
+    fi
+    return 0
+}
+
 # Funzione per verificare lo stato della connessione WireGuard
 check_wg_connection() {
+    # Aggiungo un controllo per 'wg' qui, sebbene sia anche nel main per la validazione di input
+    if ! check_wg_installed; then
+        return 1
+    fi
     # Esegui 'sudo wg' e cattura l'output
     # Il comando 'grep -q' cerca qualsiasi riga non vuota e imposta l'exit status a 0 se trova qualcosa, 1 altrimenti.
     # L'opzione '-v ^$' esclude le righe completamente vuote.
@@ -52,7 +67,6 @@ get_active_wg_interface() {
     done
     return 1 # Nessuna interfaccia attiva e configurata trovata
 }
-
 
 # Funzione per la connessione WireGuard
 connect_wg() {
@@ -142,10 +156,62 @@ disconnect_wg() {
     return 0
 }
 
+# Funzione: Valida la sintassi della configurazione WireGuard
+# Basata su controlli grep/awk, compatibile con versioni wg meno recenti
+validate_wg_syntax() {
+    local config_content="$1"
+    local errors=()
+
+    # Rimuovi commenti e righe vuote per semplificare l'analisi della sintassi
+    local cleaned_content=$(echo "$config_content" | grep -vE '^\s*#|^\s*$' | sed 's/^\s*//; s/\s*$//')
+
+    # 1. Controlla la presenza delle sezioni [Interface] e [Peer]
+    if ! echo "$cleaned_content" | grep -q '\[Interface\]'; then
+        errors+=("Sezione '[Interface]' mancante.")
+    fi
+    # [Peer] è comune, ma non strettamente obbligatorio per un'interfaccia client
+    # If ! echo "$cleaned_content" | grep -q '\[Peer\]'; then
+    #     errors+=("Avviso: Sezione '[Peer]' mancante. La configurazione potrebbe essere incompleta per alcune VPN.")
+    # fi
+
+    # 2. Controlla che le sezioni siano ben formate (iniziano con '[' e finiscono con ']')
+    if echo "$cleaned_content" | grep -vE '^\s*\[[a-zA-Z0-9_]+\]$' | grep -q '\['; then
+        errors+=("Errore: Sezioni malformate (es. '[[Section]' o '[Section').")
+    fi
+
+    # 3. Controlla il formato chiave = valore all'interno delle sezioni
+    # Questa regex è più robusta:
+    # ^\s*[a-zA-Z0-9_]+(\s*=\s*.*)?\s*$
+    # ^\s* -> Inizio riga con opzionale whitespace
+    # [a-zA-Z0-9_]+ -> Chiave (almeno un carattere alfanumerico o underscore)
+    # (\s*=\s*.*)? -> Opzionale: `=` con whitespace e poi qualsiasi carattere fino a fine riga
+    # \s*$        -> Opzionale whitespace alla fine e fine riga
+    # Escludiamo le righe che sono solo nomi di sezioni (es. "[Interface]")
+    local invalid_key_value_lines=$(echo "$cleaned_content" | grep -vE '^\s*\[[a-zA-Z0-9_]+\]$' | grep -vE '^\s*[a-zA-Z0-9_]+\s*=\s*.*$')
+
+    if [[ -n "$invalid_key_value_lines" ]]; then
+        errors+=("Errore: Righe con formato 'chiave = valore' non valido o chiavi non riconosciute.")
+        # Se vuoi mostrare quali righe sono problematiche:
+        # errors+=("Righe problematiche:\n$invalid_key_value_lines")
+    fi
+
+    if [[ ${#errors[@]} -eq 0 ]]; then
+        echo "Sintassi della configurazione WireGuard verificata: OK."
+        return 0
+    else
+        echo "Sintassi della configurazione WireGuard NON valida:"
+        for err in "${errors[@]}"; do
+            echo "  - $err"
+        done
+        return 1
+    fi
+}
+
+
 # Funzione per processare il file sorgente (immagine QR o testo) e salvare la configurazione
 process_vpn_config_source() {
     local source_file="$1"
-    local output_basename="$2" # È il nome base del file, senza estensione
+    local output_basename="$2" # Questo è il nome base del file, senza estensione
 
     local file_mime_type=$(file --mime-type -b "$source_file")
     local config_content=""
@@ -163,7 +229,7 @@ process_vpn_config_source() {
         fi
     else
         echo "Rilevato file di testo configurazione: '$source_file'."
-        # Leggi il contenuto direttamente dal file di testo
+        # Leggi contenuto direttamente dal file di testo
         if [[ ! -f "$source_file" ]]; then
             echo "Errore: Il file di configurazione '$source_file' non esiste."
             return 1
@@ -174,6 +240,13 @@ process_vpn_config_source() {
             # Non è un errore critico, ma un avviso
         fi
     fi
+
+    # --- Syntax Validation ---
+    if ! validate_wg_syntax "$config_content"; then
+        echo "La configurazione non è stata salvata a causa di errori di sintassi."
+        return 1
+    fi
+    # --- End Syntax Validation ---
 
     # Costruisci il percorso completo del file di output con l'estensione .conf
     local full_output_path="${WIREGUARD_CONFIG_DIR}/${output_basename}.conf"
@@ -203,6 +276,13 @@ fi
 
 # --- Logica Principale dello Script ---
 
+# Controllo iniziale: Assicurati che 'wg' sia installato se il contesto lo richiede.
+# Questo è importante per le operazioni di connessione/disconnessione e per la validazione della sintassi
+# (anche se ora non usiamo wg parseconf, è comunque uno strumento di WireGuard)
+if ! check_wg_installed; then
+    exit 1
+fi
+
 NUM_PARAMS=$# 
 
 if [[ "$NUM_PARAMS" -eq 0 ]]; then
@@ -218,7 +298,7 @@ if [[ "$NUM_PARAMS" -eq 0 ]]; then
 
 elif [[ "$NUM_PARAMS" -eq 2 ]]; then
     SOURCE_FILE_PATH="$1" # Può essere immagine QR o file di testo
-    OUTPUT_FILE_NAME="$2" # Questo sarà il nome base, l'estensione .conf verrà aggiunta
+    OUTPUT_FILE_NAME="$2" # Questo sarà il nome base, .conf estensione verrà aggiunta
 
     # Verifica che il file sorgente esista
     if [[ ! -f "$SOURCE_FILE_PATH" ]]; then 
