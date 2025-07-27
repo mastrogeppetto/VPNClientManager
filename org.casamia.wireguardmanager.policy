@@ -1,20 +1,20 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE policyconfig PUBLIC
  "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
- "http://www.freedesktop.org/software/polkit/policyconfig-1.0.dtd">
+ "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
 <policyconfig>
 
-  <action id="it.mastrogeppetto.vpnmanager.manage">
-    <description>Manage WireGuard VPN connections</description>
-    <message>Message</message>
+  <action id="com.yourcompany.wireguardmanager.pkexec">
+    <message>Autenticazione richiesta per gestire WireGuard VPN</message>
     <icon_name>network-vpn</icon_name>
     <defaults>
       <allow_any>no</allow_any>
       <allow_inactive>no</allow_inactive>
       <allow_active>auth_admin_keep</allow_active>
     </defaults>
-    <annotate key="org.freedesktop.policykit.exec.path">/home/augusto/VPN_casa/VPN_client/VPN.sh</annotate>
+    <annotate key="org.freedesktop.policykit.exec.path">/home/augusto/VPN_casa/VPN_client/VPNClientGUI.py</annotate>
     <annotate key="org.freedesktop.policykit.exec.allow_gui">true</annotate>
+    <annotate key="org.freedesktop.policykit.exec.preserve_env">DISPLAY;XAUTHORITY</annotate>
   </action>
 
 </policyconfig>
