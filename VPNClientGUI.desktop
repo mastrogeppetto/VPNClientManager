@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=WireGuard VPN Manager
+Comment=Manage and import WireGuard VPN configurations
+Exec=pkexec /home/augusto//VPN_casa/VPN_client/VPN.sh
+Icon="WireguardIcon.png"
+Terminal=true
+Type=Application
+Categories=Network;VPN;Utility;
+Keywords=WireGuard;VPN;Manager;Config;Import;
