@@ -57,7 +57,7 @@ Before using this script, ensure you have the following packages installed on yo
 
 1.  **Download the script**:
     ```bash
-    git clone [https://github.com/mastrogeppetto/VPNClientManager](https://github.com/mastrogeppetto/VPNClientManager)
+    git clone https://github.com/mastrogeppetto/VPNClientManager
     cd VPNClientManager
     # Or simply download the script file directly
     ```
